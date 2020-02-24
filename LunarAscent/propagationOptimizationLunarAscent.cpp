@@ -164,7 +164,7 @@ std::shared_ptr< DependentVariableSaveSettings > getDependentVariableSaveSetting
     return std::make_shared< DependentVariableSaveSettings >( dependentVariablesList, false );
 }
 
-//! Function to generate to accurate benchmarks.
+//! Function to generate two accurate benchmarks.
 /*!
  * This function runs two propagations with two different integrator settings that serve as benchmarks for
  * the nominal runs. To be able to compare these, the function returns the two interpolators pertaining
@@ -194,9 +194,22 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
         const std::shared_ptr< MultiTypePropagatorSettings< double > > benchmarkPropagatorSettings,
         std::vector< double > thrustParameters, std::string outputPath )
 {
-    // Create integrator settings for 1st run
-    double firstBenchmarkStepSize = 1.0;
+    // Create integrator settings for 0th run
+    double zerothBenchmarkStepSize = 0.01;
     std::shared_ptr< IntegratorSettings< > > benchmarkIntegratorSettings;
+    benchmarkIntegratorSettings = std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
+                simulationStartEpoch, zerothBenchmarkStepSize, RungeKuttaCoefficients::rungeKutta87DormandPrince,
+                zerothBenchmarkStepSize, zerothBenchmarkStepSize,
+                std::numeric_limits< double >::infinity( ), std::numeric_limits< double >::infinity( ) );
+
+    LunarAscentProblem probBenchmarkZeroth{ bodyMap, benchmarkIntegratorSettings, benchmarkPropagatorSettings,
+                specificImpulse };
+
+    std::cout << "Running zeroth benchmark..." << std::endl;
+    probBenchmarkZeroth.fitness( thrustParameters );
+
+    // Create integrator settings for 1st run
+    double firstBenchmarkStepSize = 0.1;
     benchmarkIntegratorSettings = std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
                 simulationStartEpoch, firstBenchmarkStepSize, RungeKuttaCoefficients::rungeKutta87DormandPrince,
                 firstBenchmarkStepSize, firstBenchmarkStepSize,
@@ -209,7 +222,7 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
     probBenchmarkFirst.fitness( thrustParameters );
 
     // Create integrator settings for 2nd run
-    double secondBenchmarkStepSize = 2.0;
+    double secondBenchmarkStepSize = 0.5;
     benchmarkIntegratorSettings = std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
                 simulationStartEpoch, secondBenchmarkStepSize, RungeKuttaCoefficients::rungeKutta87DormandPrince,
                 secondBenchmarkStepSize, secondBenchmarkStepSize,
@@ -221,9 +234,11 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
     probBenchmarkSecond.fitness( thrustParameters );
 
     // Retrieve states and dependent variables for both runs
+    std::map< double, Eigen::VectorXd > zerothBenchmarkStates = probBenchmarkZeroth.getLastRunPropagatedStateHistory( );
     std::map< double, Eigen::VectorXd > firstBenchmarkStates = probBenchmarkFirst.getLastRunPropagatedStateHistory( );
     std::map< double, Eigen::VectorXd > secondBenchmarkStates = probBenchmarkSecond.getLastRunPropagatedStateHistory( );
 
+    std::map< double, Eigen::VectorXd > zerothBenchmarkDependent = probBenchmarkZeroth.getLastRunDependentVariableHistory( );
     std::map< double, Eigen::VectorXd > firstBenchmarkDependent = probBenchmarkFirst.getLastRunDependentVariableHistory( );
     std::map< double, Eigen::VectorXd > secondBenchmarkDependent = probBenchmarkSecond.getLastRunDependentVariableHistory( );
     \
@@ -231,8 +246,11 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
     outputPath.append("/benchmarks/");
 
     // Write the state maps of both benchmarks to files
+    input_output::writeDataMapToTextFile( zerothBenchmarkStates, "benchmark0.dat", outputPath );
     input_output::writeDataMapToTextFile( firstBenchmarkStates, "benchmark1.dat", outputPath );
     input_output::writeDataMapToTextFile( secondBenchmarkStates, "benchmark2.dat", outputPath );
+
+    input_output::writeDataMapToTextFile( zerothBenchmarkDependent, "benchmarkDependent_0.dat", outputPath );
     input_output::writeDataMapToTextFile( firstBenchmarkDependent, "benchmarkDependent_1.dat", outputPath );
     input_output::writeDataMapToTextFile( secondBenchmarkDependent, "benchmarkDependent_2.dat", outputPath );
 
@@ -240,35 +258,58 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
     std::shared_ptr< InterpolatorSettings > interpolatorSettings = std::make_shared< LagrangeInterpolatorSettings >( 8 );
     std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > > interpolators;
 
+    std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > zerothStatesInterpolator =
+            createOneDimensionalInterpolator( zerothBenchmarkStates, interpolatorSettings );
     std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > firstStatesInterpolator =
             createOneDimensionalInterpolator( firstBenchmarkStates, interpolatorSettings );
     std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > secondStatesInterpolator =
             createOneDimensionalInterpolator( secondBenchmarkStates, interpolatorSettings );
+
+    std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > zerothDependentInterpolator =
+            createOneDimensionalInterpolator( zerothBenchmarkDependent, interpolatorSettings );
     std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > firstDependentInterpolator =
             createOneDimensionalInterpolator( firstBenchmarkDependent, interpolatorSettings );
     std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorXd > > secondDependentInterpolator =
             createOneDimensionalInterpolator( secondBenchmarkDependent, interpolatorSettings );
 
     std::cout << "Calculating the difference between the benchmarks..." << std::endl;
-    std::map< double, Eigen::VectorXd > statesDifference;
-    std::map< double, Eigen::VectorXd > dependentVariablesDifference;
+    std::map< double, Eigen::VectorXd > statesDifference1;
+    std::map< double, Eigen::VectorXd > statesDifference2;
+    std::map< double, Eigen::VectorXd > dependentVariablesDifference1;
+    std::map< double, Eigen::VectorXd > dependentVariablesDifference2;
 
     // Calculate difference between two benchmarks, both for the states and the dependent variables
+    for( auto iterator = firstBenchmarkStates.begin(); iterator != firstBenchmarkStates.end(); iterator++ )
+    {
+        statesDifference1[ iterator->first ] = zerothStatesInterpolator->interpolate( iterator->first ) - iterator->second;
+    }
+
+    for( auto iterator = firstBenchmarkDependent.begin(); iterator != firstBenchmarkDependent.end(); iterator++ )
+    {
+        dependentVariablesDifference1[ iterator->first ] = zerothDependentInterpolator->interpolate( iterator->first ) - iterator->second;
+    }
+
+    // Write the difference in state and dependent variables between the two benchmarks to files
+    input_output::writeDataMapToTextFile( statesDifference1,
+                                          "benchmarkStateDifference_1.dat", outputPath );
+    input_output::writeDataMapToTextFile( dependentVariablesDifference1,
+                                          "benchmarkDependentDifference_1.dat", outputPath );
+
     for( auto iterator = secondBenchmarkStates.begin(); iterator != secondBenchmarkStates.end(); iterator++ )
     {
-        statesDifference[ iterator->first ] = firstStatesInterpolator->interpolate( iterator->first ) - iterator->second;
+        statesDifference2[ iterator->first ] = firstStatesInterpolator->interpolate( iterator->first ) - iterator->second;
     }
 
     for( auto iterator = secondBenchmarkDependent.begin(); iterator != secondBenchmarkDependent.end(); iterator++ )
     {
-        dependentVariablesDifference[ iterator->first ] = firstDependentInterpolator->interpolate( iterator->first ) - iterator->second;
+        dependentVariablesDifference2[ iterator->first ] = firstDependentInterpolator->interpolate( iterator->first ) - iterator->second;
     }
 
     // Write the difference in state and dependent variables between the two benchmarks to files
-    input_output::writeDataMapToTextFile( statesDifference,
-                                          "benchmarkStateDifference.dat", outputPath );
-    input_output::writeDataMapToTextFile( dependentVariablesDifference,
-                                          "benchmarkDependentDifference.dat", outputPath );
+    input_output::writeDataMapToTextFile( statesDifference2,
+                                          "benchmarkStateDifference_2.dat", outputPath );
+    input_output::writeDataMapToTextFile( dependentVariablesDifference2,
+                                          "benchmarkDependentDifference_2.dat", outputPath );
 
     // Return the interpolators for the first benchmark (can be changed to the second if needed)
     interpolators.push_back( firstStatesInterpolator );
@@ -321,11 +362,10 @@ int main( )
 
     // DEFINE PROBLEM INDEPENDENT VARIABLES HERE:
     std::vector< double > thrustParameters =
-    { 15629.13262285292, 21.50263026822358, -0.03344538412056863, -0.06456210720352829, 0.3943447499535977, 0.5358478897251189,
-      -0.8607350478880107 };
+    { 9442.1029894147, 77.5730892317, 0.0594809887, -0.3481390073, -0.1908895105, 0.1669994835, -0.874929257 };
 
     std::string outputPath = tudat_applications::getOutputPath( "LunarAscent" );
-    bool generateAndCompareToBenchmark = true;
+    bool generateAndCompareToBenchmark = false;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////            SIMULATION SETTINGS            /////////////////////////////////////////////////////
@@ -435,7 +475,7 @@ int main( )
 
     // Define list of propagators (for convenience)
     std::vector< TranslationalPropagatorType > propagatorTypes =
-    { cowell, encke, gauss_keplerian, gauss_modified_equinoctial,
+    { cowell, encke, gauss_modified_equinoctial,
       unified_state_model_quaternions, unified_state_model_modified_rodrigues_parameters,
       unified_state_model_exponential_map };
 
@@ -460,7 +500,7 @@ int main( )
     //!
     //!  CODING NOTE: THE NUMBER, TYPES, SETTINGS OF PROPAGATORS/INTEGRATORS/INTEGRATOR STEPS,TOLERANCES,ETC. SHOULD BE MODIFIED FOR ASSIGNMENT 1
     //!
-    unsigned int numberOfPropagators = 7;
+    unsigned int numberOfPropagators = 6;
     unsigned int numberOfIntegrators = 5;
     unsigned int numberOfIntegratorStepSizeSettings = 4;
     for( unsigned int i = 0; i < numberOfPropagators; i++ )

@@ -55,7 +55,7 @@ public:
     /*!
      * Contructor
      * \param vehicleBody Body object for the ascent vehicle
-     * \param initialTime Start time of the propagatiin
+     * \param initialTime Start time of the propagation
      * \param parameterVector Vector of independent variables to be used for thrust parameterization:
      *   - Entry 0: Constant thrust magnitude
      *   - Entry 1: Constant spacing in time between nodes
