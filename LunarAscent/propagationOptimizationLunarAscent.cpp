@@ -119,12 +119,13 @@ std::shared_ptr< IntegratorSettings< > > getIntegratorSettings(
       RungeKuttaCoefficients::rungeKuttaFehlberg78,
       RungeKuttaCoefficients::rungeKutta87DormandPrince };
 
+    double currentTolerance = std::pow( 10.0, ( -10.0 + static_cast< double >( k ) ) );
+
     // Create integrator settings (multi-stage variable-step)
     if( j < 4 )
     {
         // Extract integrator type and tolerance for current run
         RungeKuttaCoefficients::CoefficientSets currentCoefficientSet = multiStageTypes.at( j );
-        double currentTolerance = std::pow( 10.0, ( -10.0 + static_cast< double >( k ) ) );
 
         // Create integrator settings
         return std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
@@ -134,12 +135,19 @@ std::shared_ptr< IntegratorSettings< > > getIntegratorSettings(
 
     }
     // Create integrator settings (multi-stage fixed-step)
-    else
+    else if (j == 4)
     {
         // Create integrator settings
         double timeStep = std::pow( 2, k );
         return std::make_shared< IntegratorSettings< > >( rungeKutta4, simulationStartEpoch, timeStep );
     }
+//    else if (j == 5)
+//    {
+//        return std::make_shared< BulirschStoerIntegratorSettings< > >(
+//                    simulationStartEpoch, 1.0, extrapolationSequence, maximumNumberOfSteps,
+//                    std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::infinity(),
+//                    currentTolerance, currentTolerance )
+//    }
 }
 
 //! Function to retrieve the dependent variable save settings for the current simulation.
@@ -195,7 +203,7 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
         std::vector< double > thrustParameters, std::string outputPath )
 {
     // Create integrator settings for 0th run
-    double zerothBenchmarkStepSize = 0.01;
+    double zerothBenchmarkStepSize = 0.001;
     std::shared_ptr< IntegratorSettings< > > benchmarkIntegratorSettings;
     benchmarkIntegratorSettings = std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
                 simulationStartEpoch, zerothBenchmarkStepSize, RungeKuttaCoefficients::rungeKutta87DormandPrince,
@@ -209,7 +217,7 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
     probBenchmarkZeroth.fitness( thrustParameters );
 
     // Create integrator settings for 1st run
-    double firstBenchmarkStepSize = 0.1;
+    double firstBenchmarkStepSize = 0.01;
     benchmarkIntegratorSettings = std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
                 simulationStartEpoch, firstBenchmarkStepSize, RungeKuttaCoefficients::rungeKutta87DormandPrince,
                 firstBenchmarkStepSize, firstBenchmarkStepSize,
@@ -222,7 +230,7 @@ std::vector< std::shared_ptr< OneDimensionalInterpolator< double, Eigen::VectorX
     probBenchmarkFirst.fitness( thrustParameters );
 
     // Create integrator settings for 2nd run
-    double secondBenchmarkStepSize = 0.5;
+    double secondBenchmarkStepSize = 0.02;
     benchmarkIntegratorSettings = std::make_shared< RungeKuttaVariableStepSizeSettings< > >(
                 simulationStartEpoch, secondBenchmarkStepSize, RungeKuttaCoefficients::rungeKutta87DormandPrince,
                 secondBenchmarkStepSize, secondBenchmarkStepSize,
@@ -365,7 +373,7 @@ int main( )
     { 9442.1029894147, 77.5730892317, 0.0594809887, -0.3481390073, -0.1908895105, 0.1669994835, -0.874929257 };
 
     std::string outputPath = tudat_applications::getOutputPath( "LunarAscent" );
-    bool generateAndCompareToBenchmark = false;
+    bool generateAndCompareToBenchmark = true;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////            SIMULATION SETTINGS            /////////////////////////////////////////////////////
