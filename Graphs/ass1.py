@@ -7,7 +7,8 @@ import parsers as psr
 from matplotlib import pyplot as plt
 
 colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
-linestyles = ["solid", "dashed", "dotted", "dashdot", (0, (1, 10)), (0, (3, 5, 1, 5, 1, 5))]
+linestyles = ["solid", "dotted", "dashdot"]
+markers = [".", "^", "s"]
 figures = []
 
 root = pathlib.Path("X:/Git/tudatBundle/tudatApplications/po2020/SimulationOutput/LunarAscent").resolve()
@@ -19,8 +20,8 @@ for i in [1, 2]:
     benchmark_time.append(benchmark_data[:, 0])
     benchmark_error.append(np.linalg.norm(benchmark_data[:, 1:4], axis=1))
 
-propagators = ["cowell", "encke", "gauss me", "usm quaternions", "usm mrp", "usm em"]
-integrators = ["RKF45", "RKF56", "RKF78", "RK87 DP", "RK4"]
+propagators = ["cowell", "encke", "gauss kepl", "gauss me", "usm quaternions", "usm mrp", "usm em"]
+integrators = ["RKF45", "RKF56", "RKF78", "RK87 DP", "RK4", "BS", "ABM"]
 settings = [10**-10, 10**-9, 10**-8, 10**-7]
 rk4_settings = [1, 2, 4, 8, 16, 32]
 
@@ -28,20 +29,31 @@ props = len(propagators)
 ints = len(integrators)
 sets = len(settings)
 
-for i in range(props):
+for i in range(2*(props + ints)):
     fig, ax = plt.subplots(num=i)
     figures.append((fig, ax))
 
     fig.figsize = (10, 6)
     fig.dpi = 400
 
-    ax.set_title(f"{propagators[i].capitalize()} Propagator")
-    ax.set_xlabel("Time [s]")
-    ax.set_ylabel("Position Error [m]")
-    ax.grid(True, axis="y", which="major")
+    if i%(props + ints) < props:
+        ax.set_title(f"{propagators[i%(props + ints)].capitalize()} Propagator")
+    else:
+        ax.set_title(f"{integrators[(i - props)%(props + ints)].capitalize()} Integrator")
 
-    for j in range(2):
-        ax.semilogy(benchmark_time[j][:-1], benchmark_error[j][:-1], "k--", label="benchmark", linewidth=1)
+    if i < props + ints:
+        ax.set_xlabel("Time [s]")
+        ax.set_ylabel("Position Error [m]")
+        ax.grid(True, axis="y", which="major")
+
+    else:
+        ax.set_xlabel("Number of function evaluations [-]")
+        ax.set_ylabel("Maximum Error [m]")
+        ax.grid(True, axis="both", which="major")
+
+    if i < props + ints:
+        for j in range(2):
+            ax.semilogy(benchmark_time[j][:-1], benchmark_error[j][:-1], "k--", label="benchmark", linewidth=1)
 
 list_dir = os.listdir(root)
 list_dir.remove("benchmarks")
@@ -61,20 +73,53 @@ for dir1 in list_dir:
                 except FileNotFoundError:
                     success = False
 
-                s = settings
-                if j == 0:
-                    s = rk4_settings
+                if j == 4:
+                    s = f" step {rk4_settings[k]}s"
+
+                else:
+                    s = f"tol {settings[k]}"
 
                 if success:
-                    if k < 4:
+                    if k%2 == 0:
                         state_data = psr.read_file(path / "stateDifferenceBenchmark.dat", "\t")
                         error = np.linalg.norm(state_data[:-1, 1:4], axis=1)
 
-                        fig, ax = figures[i]
-                        ax.semilogy(state_data[:-1, 0], error, label=f"{integrators[j]}, {s[k]}", color=colours[j], linestyle=linestyles[k], linewidth=1)
+                        _, ax = figures[i]
+                        ax.semilogy(state_data[:-1, 0], error, label=f"{integrators[j]}, {s}", color=colours[j], linestyle=linestyles[k//2], linewidth=1)
+
+                        _, ax = figures[props + j]
+                        ax.semilogy(state_data[:-1, 0], error, label=f"{propagators[i]}, {s}", color=colours[i], linestyle=linestyles[k//2], linewidth=1)
+
+                        evals = psr.read_evaluations(path / "numberOfFunctionEvaluations.dat")
+                        max_error = max(error)
+
+                        _, ax = figures[props + ints + i]
+                        ax.semilogy(evals, max_error, label=f"{integrators[j]}, {s}", color=colours[j], marker=markers[k//2])
+
+                        _, ax = figures[2*props + ints + j]
+                        ax.semilogy(evals, max_error, label=f"{propagators[i]}, {s}", color=colours[i], marker=markers[k//2])
 
 for i, (fig, ax) in enumerate(figures):
-    ax.legend(prop={"size": 8})
-    fig.savefig(f"figures/prop{i}")
+    ax.legend(loc="lower right", prop={"size": 8})
+
+    if i%(props + ints) < props:
+        name = "prop_"
+    else:
+        name = "int_"
+
+    if i < props + ints:
+        name += "acc_"
+    else:
+        name += "time_"
+
+    j = i
+    if i >= props + ints:
+        j = j%(props + ints)
+
+    if i >= props:
+        j = j%props
+
+    fig.savefig(f"figures/{name}{j}")
+    plt.close(fig)
 
 # plt.show()

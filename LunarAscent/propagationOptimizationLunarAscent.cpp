@@ -141,13 +141,21 @@ std::shared_ptr< IntegratorSettings< > > getIntegratorSettings(
         double timeStep = std::pow( 2, k );
         return std::make_shared< IntegratorSettings< > >( rungeKutta4, simulationStartEpoch, timeStep );
     }
-//    else if (j == 5)
-//    {
-//        return std::make_shared< BulirschStoerIntegratorSettings< > >(
-//                    simulationStartEpoch, 1.0, extrapolationSequence, maximumNumberOfSteps,
-//                    std::numeric_limits<double>::epsilon(), std::numeric_limits<double>::infinity(),
-//                    currentTolerance, currentTolerance )
-//    }
+
+    else if (j == 5)
+    {
+        return std::make_shared< tudat::numerical_integrators::BulirschStoerIntegratorSettings< > >(
+                    simulationStartEpoch, 0.1, numerical_integrators::bulirsch_stoer_sequence, 10,
+                    std::numeric_limits< double >::epsilon( ), std::numeric_limits< double >::infinity( ),
+                    currentTolerance, currentTolerance );
+    }
+
+    else if (j == 6)
+    {
+        return std::make_shared< AdamsBashforthMoultonSettings< > >(
+                    simulationStartEpoch, 0.01, 0.01, std::numeric_limits< double >::infinity( ),
+                    currentTolerance, currentTolerance );
+    }
 }
 
 //! Function to retrieve the dependent variable save settings for the current simulation.
@@ -483,7 +491,7 @@ int main( )
 
     // Define list of propagators (for convenience)
     std::vector< TranslationalPropagatorType > propagatorTypes =
-    { cowell, encke, gauss_modified_equinoctial,
+    { cowell, encke, gauss_keplerian, gauss_modified_equinoctial,
       unified_state_model_quaternions, unified_state_model_modified_rodrigues_parameters,
       unified_state_model_exponential_map };
 
@@ -508,8 +516,8 @@ int main( )
     //!
     //!  CODING NOTE: THE NUMBER, TYPES, SETTINGS OF PROPAGATORS/INTEGRATORS/INTEGRATOR STEPS,TOLERANCES,ETC. SHOULD BE MODIFIED FOR ASSIGNMENT 1
     //!
-    unsigned int numberOfPropagators = 6;
-    unsigned int numberOfIntegrators = 5;
+    unsigned int numberOfPropagators = 7;
+    unsigned int numberOfIntegrators = 7;
     unsigned int numberOfIntegratorStepSizeSettings = 4;
     for( unsigned int i = 0; i < numberOfPropagators; i++ )
     {
@@ -531,7 +539,7 @@ int main( )
         for( unsigned int j = 0; j < numberOfIntegrators; j++ )
         {
             // Change number of step sizes used for RK4
-            if( j >= 4 )
+            if( j == 4 )
             { numberOfIntegratorStepSizeSettings = 6; }
             else
             { numberOfIntegratorStepSizeSettings = 4; }
@@ -539,61 +547,69 @@ int main( )
             // Iterate over all tolerances/step sizes
             for( unsigned int k = 0; k < numberOfIntegratorStepSizeSettings; k++ )
             {
-                // Print status
-                std::cout<<"Current run "<<i<<" "<<j<<" "<<k<<std::endl;
-                outputPath = tudat_applications::getOutputPath(
-                            "LunarAscent/prop_" + std::to_string( i ) + "/int_" + std::to_string( j ) + "/setting_" + std::to_string( k ) + "/" );
-
-                // Create integrator settings
-                std::shared_ptr< IntegratorSettings< > > integratorSettings = getIntegratorSettings( i, j, k, simulationStartEpoch );
-
-                // Construct problem and propagate trajectory using defined settings
-                LunarAscentProblem prob{ bodyMap, integratorSettings, propagatorSettings, constantSpecificImpulse };
-                prob.fitness( thrustParameters );
-
-                // Save state and dependent variable results to file
-                std::map< double, Eigen::VectorXd> stateHistory = prob.getLastRunPropagatedStateHistory( );
-                std::map< double, Eigen::VectorXd> dependentVariableHistory = prob.getLastRunDependentVariableHistory( );
-                input_output::writeDataMapToTextFile( stateHistory,  "stateHistory.dat", outputPath );
-                input_output::writeDataMapToTextFile( dependentVariableHistory, "dependentVariables.dat", outputPath );
-
-                // Write the number of function evaluations to a file for comparison of different integrators
-                int numberOfEvaluations =
-                        prob.getLastRunDynamicsSimulator( )->getCumulativeNumberOfFunctionEvaluations( ).rbegin( )->second;
-                input_output::writeMatrixToFile( ( Eigen::MatrixXd( 1, 1 ) << numberOfEvaluations ).finished( ),
-                                                 "numberOfFunctionEvaluations.dat", 16, outputPath );
-
-                // Write to file whether the simulation was run succesfully (true or false)
-                bool succesfullyRun = prob.getLastRunDynamicsSimulator( )->integrationCompletedSuccessfully( );
-                input_output::writeMatrixToFile( ( Eigen::MatrixXd( 1, 1 ) << succesfullyRun ).finished( ),
-                                                 "propagationSuccesfull.dat", 16, outputPath );
-
-                // Compare to benchmark, and write differences to files
-                if( generateAndCompareToBenchmark )
+                if (
+                     !(i == 2 && j == 2) &&
+                     !(i == 2 && j == 3) &&
+                     !(i == 2 && j == 5) &&
+                     !(i == 3 && j == 5)
+                   )
                 {
-                    std::map< double, Eigen::VectorXd> stateDifference;
-                    std::map< double, Eigen::VectorXd> depVarDifference;
+                    // Print status
+                    std::cout<<"Current run "<<i<<" "<<j<<" "<<k<<std::endl;
+                    outputPath = tudat_applications::getOutputPath(
+                                "LunarAscent/prop_" + std::to_string( i ) + "/int_" + std::to_string( j ) + "/setting_" + std::to_string( k ) + "/" );
 
-                    // Compute difference w.r.t. benchmark using the interpolators we created
-                    for( auto stateIterator = stateHistory.begin(); stateIterator != stateHistory.end(); stateIterator++ )
+                    // Create integrator settings
+                    std::shared_ptr< IntegratorSettings< > > integratorSettings = getIntegratorSettings( i, j, k, simulationStartEpoch );
+
+                    // Construct problem and propagate trajectory using defined settings
+                    LunarAscentProblem prob{ bodyMap, integratorSettings, propagatorSettings, constantSpecificImpulse };
+                    prob.fitness( thrustParameters );
+
+                    // Save state and dependent variable results to file
+                    std::map< double, Eigen::VectorXd> stateHistory = prob.getLastRunPropagatedStateHistory( );
+                    std::map< double, Eigen::VectorXd> dependentVariableHistory = prob.getLastRunDependentVariableHistory( );
+                    input_output::writeDataMapToTextFile( stateHistory,  "stateHistory.dat", outputPath );
+                    input_output::writeDataMapToTextFile( dependentVariableHistory, "dependentVariables.dat", outputPath );
+
+                    // Write the number of function evaluations to a file for comparison of different integrators
+                    int numberOfEvaluations =
+                            prob.getLastRunDynamicsSimulator( )->getCumulativeNumberOfFunctionEvaluations( ).rbegin( )->second;
+                    input_output::writeMatrixToFile( ( Eigen::MatrixXd( 1, 1 ) << numberOfEvaluations ).finished( ),
+                                                     "numberOfFunctionEvaluations.dat", 16, outputPath );
+
+                    // Write to file whether the simulation was run succesfully (true or false)
+                    bool succesfullyRun = prob.getLastRunDynamicsSimulator( )->integrationCompletedSuccessfully( );
+                    input_output::writeMatrixToFile( ( Eigen::MatrixXd( 1, 1 ) << succesfullyRun ).finished( ),
+                                                     "propagationSuccesfull.dat", 16, outputPath );
+
+                    // Compare to benchmark, and write differences to files
+                    if( generateAndCompareToBenchmark )
                     {
-                        if( dependentVariableHistory.count( stateIterator->first ) != 0 )
+                        std::map< double, Eigen::VectorXd> stateDifference;
+                        std::map< double, Eigen::VectorXd> depVarDifference;
+
+                        // Compute difference w.r.t. benchmark using the interpolators we created
+                        for( auto stateIterator = stateHistory.begin(); stateIterator != stateHistory.end(); stateIterator++ )
                         {
-                            stateDifference[ stateIterator->first ] =
-                                    stateIterator->second -
-                                    benchmarkInterpolators.at( 0 )->interpolate( stateIterator->first );
-                            depVarDifference[ stateIterator->first ] =
-                                    dependentVariableHistory.at( stateIterator->first ) -
-                                    benchmarkInterpolators.at( 1 )->interpolate( stateIterator->first );
+                            if( dependentVariableHistory.count( stateIterator->first ) != 0 )
+                            {
+                                stateDifference[ stateIterator->first ] =
+                                        stateIterator->second -
+                                        benchmarkInterpolators.at( 0 )->interpolate( stateIterator->first );
+                                depVarDifference[ stateIterator->first ] =
+                                        dependentVariableHistory.at( stateIterator->first ) -
+                                        benchmarkInterpolators.at( 1 )->interpolate( stateIterator->first );
+                            }
                         }
+
+                        // Write differences w.r.t. benchmarks to files
+                        input_output::writeDataMapToTextFile(
+                                    stateDifference, "stateDifferenceBenchmark.dat", outputPath );
+                        input_output::writeDataMapToTextFile(
+                                    depVarDifference, "dependentVariablesDifferenceBenchmark.dat", outputPath );
+
                     }
-
-                    // Write differences w.r.t. benchmarks to files
-                    input_output::writeDataMapToTextFile(
-                                stateDifference, "stateDifferenceBenchmark.dat", outputPath );
-                    input_output::writeDataMapToTextFile(
-                                depVarDifference, "dependentVariablesDifferenceBenchmark.dat", outputPath );
-
                 }
             }
         }

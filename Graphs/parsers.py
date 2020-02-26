@@ -48,3 +48,7 @@ def read_succesfull(path):
     
     else:
         return False
+
+def read_evaluations(path):
+    with open(path, "r") as f:
+        return int(f.read())
