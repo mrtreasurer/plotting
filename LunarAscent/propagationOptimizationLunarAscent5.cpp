@@ -8,7 +8,7 @@
  *    http://tudat.tudelft.nl/LICENSE.
  */
 
-#include "lunarAscent.h"
+#include "lunarAscent5.h"
 
 using namespace tudat_applications::PropagationOptimization2020;
 
@@ -560,7 +560,7 @@ int main( )
                      !(i == 2 && j == 5) &&
                      !(i == 3 && j == 3) &&
                      !(i == 3 && j == 5) &&
-                     !(i > 1 && k > 1)
+                     !(i > 1 && k > 2)
                    )
                 {
                     // Print status

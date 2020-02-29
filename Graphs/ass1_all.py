@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
 linestyles = ["solid", "dotted", "dashdot"]
-markers = [".", "^", "s"]
+markers = ["o", "^", "s"]
 figures = []
 
 root = pathlib.Path("X:/Git/tudatBundle/tudatApplications/po2020/SimulationOutput/LunarAscent").resolve()
@@ -20,9 +20,10 @@ for i in [1, 2]:
     benchmark_time.append(benchmark_data[:, 0])
     benchmark_error.append(np.linalg.norm(benchmark_data[:, 1:4], axis=1))
 
-propagators = ["cowell", "encke", "gauss kepl", "gauss me", "usm quaternions", "usm mrp", "usm em"]
+propagators = ["cowell", "encke", "gauss kepl", "gauss me", "usm q", "usm mrp", "usm em"]
 integrators = ["RKF45", "RKF56", "RKF78", "RK87 DP", "RK4", "BS", "ABM"]
-settings = [10**-10, 10**-9, 10**-8, 10**-7]
+# settings = [10**-10, 10**-9, 10**-8, 10**-7]
+settings = [10**-8, 10**-7, 10**-6, 10**-5]
 rk4_settings = [1, 2, 4, 8, 16, 32]
 
 props = len(propagators)
@@ -39,7 +40,7 @@ for i in range(2*(props + ints)):
     if i%(props + ints) < props:
         ax.set_title(f"{propagators[i%(props + ints)].capitalize()} Propagator")
     else:
-        ax.set_title(f"{integrators[(i - props)%(props + ints)].capitalize()} Integrator")
+        ax.set_title(f"{integrators[(i - props)%(props + ints)]} Integrator")
 
     if i < props + ints:
         ax.set_xlabel("Time [s]")
@@ -88,19 +89,24 @@ for dir1 in list_dir:
                         ax.semilogy(state_data[:-1, 0], error, label=f"{integrators[j]}, {s}", color=colours[j], linestyle=linestyles[k//2], linewidth=1)
 
                         _, ax = figures[props + j]
-                        ax.semilogy(state_data[:-1, 0], error, label=f"{propagators[i]}, {s}", color=colours[i], linestyle=linestyles[k//2], linewidth=1)
+                        ax.semilogy(state_data[:-1, 0], error, label=f"{propagators[i].capitalize()}, {s}", color=colours[i], linestyle=linestyles[k//2], linewidth=1)
 
                         evals = psr.read_evaluations(path / "numberOfFunctionEvaluations.dat")
                         max_error = max(error)
 
                         _, ax = figures[props + ints + i]
-                        ax.semilogy(evals, max_error, label=f"{integrators[j]}, {s}", color=colours[j], marker=markers[k//2])
+                        ax.semilogy(evals, max_error, label=f"{integrators[j]}, {s}", color=colours[j], marker=markers[k//2], linestyle=None)
 
+                        # if not ((i not in [0, 1]) and (j == 3) ):
                         _, ax = figures[2*props + ints + j]
-                        ax.semilogy(evals, max_error, label=f"{propagators[i]}, {s}", color=colours[i], marker=markers[k//2])
+                        ax.semilogy(evals, max_error, label=f"{propagators[i].capitalize()}, {s}", color=colours[i], marker=markers[k//2], linestyle=None)
 
 for i, (fig, ax) in enumerate(figures):
-    ax.legend(loc="lower right", prop={"size": 8})
+    loc = "lower right"
+    if i >= props + ints:
+        loc = "upper right"
+    
+    ax.legend(loc=loc, prop={"size": 8})
 
     if i%(props + ints) < props:
         name = "prop_"
@@ -119,7 +125,7 @@ for i, (fig, ax) in enumerate(figures):
     if i >= props:
         j = j%props
 
-    fig.savefig(f"figures/{name}{j}")
+    fig.savefig(f"figures_5/{name}{j}")
     plt.close(fig)
 
 # plt.show()
