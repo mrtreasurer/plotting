@@ -2,9 +2,11 @@ import os
 import pathlib
 import numpy as np
 
-import parsers as psr
-
 from matplotlib import pyplot as plt
+
+import parsers as psr
+import ae4866.definitions as d
+
 
 colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
 linestyles = ["solid", "dotted", "dashdot", (0, (1, 10))]
@@ -49,7 +51,7 @@ def get_max_error(path, **kwargs):
 
 def get_successful(path):
     try:
-        success = psr.read_succesfull(path / "propagationSuccesfull.dat")
+        success = d.read_succesfull(path / "propagationSuccesfull.dat")
 
     except FileNotFoundError:
         success = False
@@ -61,7 +63,7 @@ def get_evals(path):
     success = get_successful(path)
     
     if success:
-        return psr.read_evaluations(root / get_relpath(p, 3, s) / "numberOfFunctionEvaluations.dat")
+        return d.read_evaluations(root / get_relpath(p, 3, s) / "numberOfFunctionEvaluations.dat")
 
     else:
         return 0
@@ -151,7 +153,7 @@ apply_settings(fig, mode=2)
 for i in range(ints):
     for s in range(2):
         _, error = get_max_error(root / get_relpath(0, i, s) / "stateDifferenceBenchmark.dat")
-        evals = psr.read_evaluations(root / get_relpath(0, i, s) / "numberOfFunctionEvaluations.dat")
+        evals = d.read_evaluations(root / get_relpath(0, i, s) / "numberOfFunctionEvaluations.dat")
 
         setting = settings_string(i, s)
 

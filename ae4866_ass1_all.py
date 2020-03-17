@@ -2,9 +2,10 @@ import os
 import pathlib
 import numpy as np
 
-import parsers as psr
-
 from matplotlib import pyplot as plt
+
+import parsers as psr
+import ae4866.definitions as d
 
 colours = plt.rcParams['axes.prop_cycle'].by_key()['color']
 linestyles = ["solid", "dotted", "dashdot"]
@@ -69,7 +70,7 @@ for dir1 in list_dir:
                 k = int(dir3[-1])
 
                 try:
-                    success = psr.read_succesfull(path / "propagationSuccesfull.dat")
+                    success = d.read_succesfull(path / "propagationSuccesfull.dat")
 
                 except FileNotFoundError:
                     success = False
@@ -91,7 +92,7 @@ for dir1 in list_dir:
                         _, ax = figures[props + j]
                         ax.semilogy(state_data[:-1, 0], error, label=f"{propagators[i].capitalize()}, {s}", color=colours[i], linestyle=linestyles[k//2], linewidth=1)
 
-                        evals = psr.read_evaluations(path / "numberOfFunctionEvaluations.dat")
+                        evals = d.read_evaluations(path / "numberOfFunctionEvaluations.dat")
                         max_error = max(error)
 
                         _, ax = figures[props + ints + i]

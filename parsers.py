@@ -6,10 +6,10 @@ def read_file(path, separator):
         readout = f.readlines()
 
         if separator == " ":
-            data = parse_space_separated(readout)
+            data = _parse_space_separated(readout)
 
         elif separator == "\t":
-            data = parse_tab_separated(readout)
+            data = _parse_tab_separated(readout)
 
         else:
             raise ValueError("No parsing function for delimiter")
@@ -17,7 +17,7 @@ def read_file(path, separator):
     return data
 
 
-def parse_space_separated(readout):
+def _parse_space_separated(readout):
     space = " "
     data = []
 
@@ -36,19 +36,5 @@ def parse_space_separated(readout):
     return np.array(data)
 
 
-def parse_tab_separated(readout):
+def _parse_tab_separated(readout):
     return np.genfromtxt(readout, delimiter="\t")
-
-def read_succesfull(path):
-    with open(path, "r") as f:
-        v = int(f.read())
-
-    if v == 1:
-        return True
-    
-    else:
-        return False
-
-def read_evaluations(path):
-    with open(path, "r") as f:
-        return int(f.read())
